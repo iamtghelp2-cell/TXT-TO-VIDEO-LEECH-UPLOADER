@@ -1,7 +1,3 @@
-# Don't Remove Credit Tg - https://t.me/roxybasicneedbot1
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@roxybasicneedbot
-# Ask Doubt on telegram https://t.me/roxybasicneedbot1
-
 import time
 import math
 import os
@@ -19,11 +15,10 @@ class Timer:
         return False
 
 
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
-def hrb(value, digits= 2, delim= "", postfix=""):
-    """Return a human-readable file size.
-    """
+def hrb(value, digits=2, delim="", postfix=""):
+    """Return a human-readable file size."""
     if value is None:
         return None
     chosen_unit = "B"
@@ -35,12 +30,10 @@ def hrb(value, digits= 2, delim= "", postfix=""):
             break
     return f"{value:.{digits}f}" + delim + chosen_unit + postfix
 
-def hrt(seconds, precision = 0):
-    """Return a human-readable time delta as a string.
-    """
+def hrt(seconds, precision=0):
+    """Return a human-readable time delta as a string."""
     pieces = []
     value = timedelta(seconds=seconds)
-    
 
     if value.days:
         pieces.append(f"{value.days}d")
@@ -64,7 +57,6 @@ def hrt(seconds, precision = 0):
         return "".join(pieces)
 
     return "".join(pieces[:precision])
-
 
 
 timer = Timer()
@@ -94,8 +86,6 @@ async def progress_bar(current, total, reply, start):
             progress_bar = "▰" * completed_length + "▱" * remaining_length
             
             try:
-                await reply.edit(f'<b>\n ╭──⌯════🆄︎ᴘʟᴏᴀᴅɪɴɢ⬆️⬆️═════⌯──╮ \n├⚡ {progress_bar}|﹝{perc}﹞ \n├🚀 Speed » {sp} \n├📟 Processed » {cur}\n├🧲 Size - ETA » {tot} - {eta} \n├🤖 𝔹ʏ » @roxybasicneedbot1\n╰─═══ ✪ @roxybasicneedbot1 ✪ ═══─╯\n</b>') 
+                await reply.edit(f'<b>\n ╭──⌯════🆄︎ᴘʟᴏᴀᴅɪɴɢ⬆️⬆️═════⌯──╮ \n├⚡ {progress_bar}|﹝{perc}﹞ \n├🚀 Speed » {sp} \n├📟 Processed » {cur}\n├🧲 Size - ETA » {tot} - {eta} \n├🤖 𝔹ʏ » @iamtghelp\n╰─═══ ✪ @iamtghelp ✪ ═══─╯\n</b>') 
             except FloodWait as e:
                 time.sleep(e.x)
-
-
