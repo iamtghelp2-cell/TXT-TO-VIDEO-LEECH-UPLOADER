@@ -1,7 +1,3 @@
-# Don't Remove Credit Tg - https://t.me/roxybasicneedbot1
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@roxybasicneedbot
-# Ask Doubt on telegram https://t.me/roxybasicneedbot1
-
 import os
 import re
 import sys
@@ -30,80 +26,76 @@ bot = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN)
 
-# Welcome image file path
 WELCOME_IMAGE_PATH = "welcome.jpg"
 
-# Enhanced URL validation function
 def is_valid_url(url):
-    """Check if URL is valid and accessible"""
     url_pattern = re.compile(
-        r'^https?://'  # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain...
-        r'localhost|'  # localhost...
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
-        r'(?::\d+)?'  # optional port
+        r'^https?://'
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'
+        r'localhost|'
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
     return url_pattern.match(url) is not None
 
 def extract_url_from_line(line):
-    """Extract and validate URL from a line of text"""
     line = line.strip()
     if not line:
         return None, None
     
-    # Try to find URL in the line
     url_match = re.search(r'https?://[^\s]+', line)
     if url_match:
         url = url_match.group()
-        # Extract title (everything before the URL)
-        title = line.replace(url, '').strip()
+        title = line.replace(url, '').strip().rstrip(':').strip('|').strip()
         if not title:
             title = f"File_{hash(url) % 1000}"
         return title, url
-    
-    # If line doesn't contain http/https, check if it's a valid domain
-    if '.' in line and not line.startswith('/'):
-        # Assume it's a URL without protocol
-        url = 'https://' + line
-        if is_valid_url(url):
-            return f"File_{hash(line) % 1000}", url
-    
     return None, None
+
+def get_platform_headers(url):
+    """पहचानकर हर ऐप के हिसाब से सही हेडर लगाना"""
+    headers_cmd = ""
+    u = url.lower()
+    
+    if "akamaized.net" in u or "khanglobalstudies" in u:
+        headers_cmd = '--add-header "Origin: https://khanglobalstudies.com" --add-header "Referer: https://khanglobalstudies.com/"'
+    elif "classplusapp" in u or "cpvod" in u:
+        headers_cmd = '--add-header "Origin: https://web.classplusapp.com" --add-header "Referer: https://web.classplusapp.com/"'
+    elif "pw.live" in u or "penpencil" in u:
+        headers_cmd = '--add-header "Origin: https://www.pw.live" --add-header "Referer: https://www.pw.live/"'
+    elif "careerwill" in u:
+        headers_cmd = '--add-header "Origin: https://careerwill.com" --add-header "Referer: https://careerwill.com/"'
+    elif "adda247" in u:
+        headers_cmd = '--add-header "Origin: https://www.adda247.com" --add-header "Referer: https://www.adda247.com/"'
+    elif "drishtiias" in u:
+        headers_cmd = '--add-header "Origin: https://www.drishtiias.com" --add-header "Referer: https://www.drishtiias.com/"'
+    else:
+        headers_cmd = '--add-header "Accept: */*" --add-header "Connection: keep-alive"'
+        
+    return headers_cmd
 
 @bot.on_message(filters.command(["start"]))
 async def start(bot: Client, m: Message):
-    welcome_text = f"<b>👋 Hello {m.from_user.mention}!</b>\n\n<blockquote>📁 I am a bot for downloading files from your <b>.TXT</b> file and uploading them to Telegram.\n\n🚀 To get started, send /upload command and follow the steps.</blockquote>"
+    welcome_text = (
+        f"<b>👋 Hello {m.from_user.mention}!</b>\n\n"
+        f"<blockquote>📁 <b>Universal TXT-to-Telegram Uploader</b>\n\n"
+        f"⚡ <b>Supported:</b> All Major Coaching Apps (KGS, Classplus, PW, Careerwill, Adda247), YouTube, Google Drive & PDFs.\n\n"
+        f"🚀 Send <b>/upload</b> command to start downloading.</blockquote>"
+    )
     
-    # Create inline keyboard (आपका चैनल यहाँ सेट है)
     keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("⚡ Upload Files", callback_data="upload_files")
-        ],
-        [
-            InlineKeyboardButton("🔔 Channel", url="https://t.me/iamtghelp")
-        ]
+        [InlineKeyboardButton("⚡ Upload Files", callback_data="upload_files")],
+        [InlineKeyboardButton("🔔 Channel", url="https://t.me/iamtghelp")]
     ])
     
-    # Check if the welcome image file exists
     if os.path.exists(WELCOME_IMAGE_PATH):
-        await m.reply_photo(
-            photo=WELCOME_IMAGE_PATH, 
-            caption=welcome_text, 
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML
-        )
+        await m.reply_photo(photo=WELCOME_IMAGE_PATH, caption=welcome_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     else:
-        await m.reply_text(
-            welcome_text, 
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML
-        )
+        await m.reply_text(welcome_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 @bot.on_callback_query()
 async def callback_handler(bot: Client, query: CallbackQuery):
-    data = query.data
-    
-    if data == "upload_files":
+    if query.data == "upload_files":
         await query.answer("Send /upload command to start!", show_alert=True)
 
 @bot.on_message(filters.command("stop"))
@@ -114,9 +106,9 @@ async def restart_handler(_, m):
 @bot.on_message(filters.command(["upload"]))
 async def upload(bot: Client, m: Message):
     editable = await m.reply_text('📤 Send your TXT file with links ⚡️')
-    input: Message = await bot.listen(editable.chat.id)
-    x = await input.download()
-    await input.delete(True)
+    input_msg: Message = await bot.listen(editable.chat.id)
+    x = await input_msg.download()
+    await input_msg.delete(True)
 
     path = f"./downloads/{m.chat.id}"
     os.makedirs(path, exist_ok=True)
@@ -127,16 +119,14 @@ async def upload(bot: Client, m: Message):
         
         lines = content.split("\n")
         links = []
-        
         for line in lines:
             title, url = extract_url_from_line(line)
             if title and url and is_valid_url(url):
                 links.append([title, url])
         
         os.remove(x)
-        
         if not links:
-            await editable.edit("❌ **No valid links found in the file!**\n\nPlease make sure your file contains valid URLs.")
+            await editable.edit("❌ **No valid links found in the file!**")
             return
             
     except Exception as e:
@@ -155,26 +145,21 @@ async def upload(bot: Client, m: Message):
     raw_text0 = input1.text
     await input1.delete(True)
     
-    await editable.edit("🎬 **Select video quality:**\n\n360, 480, 720, 1080, 4k")
+    await editable.edit("🎬 **Select video quality:**\n\n360, 480, 720, 1080")
     input2: Message = await bot.listen(editable.chat.id)
-    raw_text2 = input2.text
+    raw_text2 = input2.text.strip()
     await input2.delete(True)
-    
-    quality_map = {
-        "144": "256x144", "240": "426x240", "360": "640x360",
-        "480": "854x480", "720": "1280x720", "1080": "1920x1080"
-    }
-    res = quality_map.get(raw_text2, "UN")
+    if raw_text2 not in ["360", "480", "720", "1080"]:
+        raw_text2 = "720"
     
     await editable.edit("💬 **Enter caption for files:**")
     input3: Message = await bot.listen(editable.chat.id)
-    raw_text3 = input3.text
+    MR = input3.text
     await input3.delete(True)
-    MR = raw_text3
     
     await editable.edit("🖼 **Send thumbnail URL** (or send 'no' to skip):")
     input6 = await bot.listen(editable.chat.id)
-    thumb_input = input6.text
+    thumb_input = input6.text.strip()
     await input6.delete(True)
     await editable.delete()
 
@@ -195,138 +180,101 @@ async def upload(bot: Client, m: Message):
     successful_downloads = 0
     failed_downloads = 0
 
-    try:
-        for i in range(count - 1, len(links)):
-            if i >= len(links):
-                break
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+
+    for i in range(count - 1, len(links)):
+        try:
+            title, url = links[i]
             
-            try:
-                title, url = links[i]
-                
-                # Process URL for different platforms
-                if "drive.google.com" in url:
-                    url = url.replace("file/d/","uc?export=download&id=").replace("/view?usp=sharing","")
-                elif "youtube.com/watch" in url or "youtu.be/" in url:
-                    pass  # Keep as is for yt-dlp
-                elif "visionias" in url:
-                    try:
-                        async with ClientSession() as session:
-                            headers = {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                            }
-                            async with session.get(url, headers=headers) as resp:
-                                text = await resp.text()
-                                m3u8_match = re.search(r"(https://.*?playlist\.m3u8.*?)\"", text)
-                                if m3u8_match:
-                                    url = m3u8_match.group(1)
-                    except:
-                        pass
-                
-                name1 = re.sub(r'[<>:"/\\|?*]', '', title)[:50]
-                name = f'{str(count).zfill(3)}) {name1}'
+            # YouTube embed फिक्स
+            if "youtube.com/embed/" in url:
+                yt_id = url.split("embed/")[1].split("?")[0]
+                url = f"https://www.youtube.com/watch?v={yt_id}"
 
-                # Determine download strategy
-                if "youtu" in url:
-                    ytf = 'bv*[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[height<={raw_text2}][ext=mp4]'
-                    
-                    cmd = (
-                     f'yt-dlp '
-                        f'--force-ipv4 '
-                        f'--retries infinite '
-                        f'--http-chunk-size 10M '
-                        f'--downloader ffmpeg '
-                        f'--concurrent-fragments 20 '
-                        f'--cookies-from-browser chrome '
-                        f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
-                        f'-f "{ytf}" "{url}" '
-                        f'-o "{name}.%(ext)s"'
-                    )
+            # Google drive direct link फिक्स
+            if "drive.google.com" in url:
+                url = url.replace("file/d/", "uc?export=download&id=").replace("/view?usp=sharing", "")
 
-                elif url.endswith('.pdf'):
-                    cmd = f'yt-dlp -o "{name}.pdf" "{url}"'
-                else:
-                    cmd = (
-                        f'yt-dlp '
-                        f'--downloader ffmpeg '
-                        f'--concurrent-fragments 32 '
-                        f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
-                        f'--add-header "Accept-Language: en-US,en;q=0.9" '
-                        f'--add-header "Connection: keep-alive" '
-                        f'-f "bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]" "{url}" '
-                        f'-o "{name}.%(ext)s"'
-                    )
+            name1 = re.sub(r'[<>:"/\\|?*]', '', title)[:60].strip()
+            name = f'{str(count).zfill(3)}) {name1}'
 
-                cc = f'**📹 Video #{str(count).zfill(3)}**\n**📁 Title:** {name1}\n**📦 Batch:** {raw_text0}\n{MR}'
-                cc1 = f'**📄 Document #{str(count).zfill(3)}**\n**📁 Title:** {name1}\n**📦 Batch:** {raw_text0}\n{MR}'
-                
-                # Show download progress
-                prog = await m.reply_text(
-                    f"⬇️ **Downloading...**\n\n"
-                    f"📁 **Name:** `{name1}`\n"
-                    f"🔗 **URL:** `{url[:50]}...`\n"
-                    f"📊 **Progress:** {count}/{len(links)}"
+            prog = await m.reply_text(
+                f"⬇️ **Downloading...**\n\n"
+                f"📁 **Name:** `{name1}`\n"
+                f"📊 **Progress:** {count}/{len(links)}"
+            )
+
+            platform_headers = get_platform_headers(url)
+
+            # 1. PDF फाइल्स
+            if url.endswith('.pdf') or "pdf" in url.lower():
+                cmd = f'yt-dlp --no-check-certificates {platform_headers} -o "{name}.pdf" "{url}"'
+            # 2. सभी वीडियो प्लेटफॉर्म्स (KGS, Classplus, PW, YouTube, Akamai, CloudFront)
+            else:
+                cmd = (
+                    f'yt-dlp '
+                    f'--no-check-certificates '
+                    f'--retries 20 '
+                    f'--fragment-retries 20 '
+                    f'--concurrent-fragments 5 '
+                    f'--user-agent "{user_agent}" '
+                    f'{platform_headers} '
+                    f'-f "best[height<={raw_text2}]/bestvideo[height<={raw_text2}]+bestaudio/best" '
+                    f'"{url}" '
+                    f'-o "{name}.%(ext)s"'
                 )
-                
-                try:
-                    if "drive.google.com" in url:
-                        filename = await helper.download(url, name)
-                        if filename and os.path.exists(filename):
-                            await bot.send_document(chat_id=m.chat.id, document=filename, caption=cc1)
-                            os.remove(filename)
-                            successful_downloads += 1
-                    elif ".pdf" in url:
-                        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                        expected_file = f"{name}.pdf"
-                        if os.path.exists(expected_file):
-                            await bot.send_document(chat_id=m.chat.id, document=expected_file, caption=cc1)
-                            os.remove(expected_file)
-                            successful_downloads += 1
-                    else:
-                        # Video download
-                        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                        
-                        # Find downloaded file
-                        possible_extensions = ['.mp4', '.mkv', '.avi', '.webm', '.mov']
-                        filename = None
-                        for ext in possible_extensions:
-                            test_file = f"{name}{ext}"
-                            if os.path.exists(test_file):
-                                filename = test_file
-                                break
-                        
-                        if filename and os.path.exists(filename):
-                            await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
-                            successful_downloads += 1
-                        else:
-                            failed_downloads += 1
-                            await prog.edit(f"❌ **Failed:** {name1}")
-                            await asyncio.sleep(2)
-                    
-                    await prog.delete()
-                    count += 1
-                    time.sleep(1)
-                    
-                except FloodWait as e:
-                    await m.reply_text(f"⚠️ **Rate limited. Waiting {e.x} seconds...**")
-                    time.sleep(e.x)
-                    continue
-                except Exception as download_error:
-                    failed_downloads += 1
-                    await prog.edit(f"❌ **Error:** {str(download_error)[:100]}")
-                    await asyncio.sleep(3)
-                    continue
 
+            cc = f'**📹 Video #{str(count).zfill(3)}**\n**📁 Title:** {name1}\n**📦 Batch:** {raw_text0}\n{MR}'
+            cc1 = f'**📄 Document #{str(count).zfill(3)}**\n**📁 Title:** {name1}\n**📦 Batch:** {raw_text0}\n{MR}'
+
+            try:
+                if ".pdf" in url.lower():
+                    subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    expected_pdf = f"{name}.pdf"
+                    if os.path.exists(expected_pdf):
+                        await bot.send_document(chat_id=m.chat.id, document=expected_pdf, caption=cc1)
+                        os.remove(expected_pdf)
+                        successful_downloads += 1
+                    else:
+                        failed_downloads += 1
+                        await prog.edit(f"❌ **Failed:** {name1}")
+                        await asyncio.sleep(2)
+                else:
+                    subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    
+                    found_file = None
+                    for ext in ['.mp4', '.mkv', '.webm', '.ts']:
+                        if os.path.exists(f"{name}{ext}"):
+                            found_file = f"{name}{ext}"
+                            break
+                    
+                    if found_file:
+                        await helper.send_vid(bot, m, cc, found_file, thumb, name, prog)
+                        successful_downloads += 1
+                    else:
+                        failed_downloads += 1
+                        await prog.edit(f"❌ **Failed:** {name1}")
+                        await asyncio.sleep(2)
+
+                await prog.delete()
+                count += 1
+                time.sleep(1)
+
+            except FloodWait as e:
+                await asyncio.sleep(e.x)
+                continue
             except Exception as e:
                 failed_downloads += 1
-                await m.reply_text(f"❌ **Processing error:** {str(e)[:200]}")
+                await prog.edit(f"❌ **Error:** {str(e)[:100]}")
+                await asyncio.sleep(2)
                 continue
 
-    except Exception as e:
-        await m.reply_text(f"❌ **Fatal error:** {str(e)}")
+        except Exception as e:
+            failed_downloads += 1
+            continue
 
-    # Final summary
     summary_text = (
-        f"🎉 **Download Complete!**\n\n"
+        f"🎉 **Batch Complete!**\n\n"
         f"✅ **Successful:** {successful_downloads}\n"
         f"❌ **Failed:** {failed_downloads}\n"
         f"📊 **Total:** {successful_downloads + failed_downloads}"
