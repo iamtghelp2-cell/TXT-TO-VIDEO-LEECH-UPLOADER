@@ -13,18 +13,16 @@ import subprocess
 
 import core as helper
 from utils import progress_bar
-from vars import API_ID, API_HASH, BOT_TOKEN, FORCE_SUB_CHANNEL, FORCE_SUB_CHANNEL_LINK, ADMINS, OWNER_ID
+from vars import API_ID, API_HASH, BOT_TOKEN, ADMINS, OWNER_ID
 from aiohttp import ClientSession
 from pyromod import listen
 from subprocess import getstatusoutput
 
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from pyrogram.errors import FloodWait, UserNotParticipant, ChatAdminRequired
-from pyrogram.errors.exceptions.bad_request_400 import StickerEmojiInvalid
-from pyrogram.types.messages_and_media import message
+from pyrogram.errors import FloodWait
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
-from pyrogram.enums import ParseMode, ChatMemberStatus
+from pyrogram.enums import ParseMode
 
 bot = Client(
     "bot",
@@ -34,44 +32,6 @@ bot = Client(
 
 # Welcome image file path
 WELCOME_IMAGE_PATH = "welcome.jpg"
-
-# Force Subscribe Check Function
-async def is_subscribed(bot, user_id):
-    if not FORCE_SUB_CHANNEL:
-        return True
-    
-    try:
-        member = await bot.get_chat_member(chat_id=FORCE_SUB_CHANNEL, user_id=user_id)
-        if member.status in [ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.MEMBER]:
-            return True
-        else:
-            return False
-    except UserNotParticipant:
-        return False
-    except Exception as e:
-        print(f"Error checking subscription: {e}")
-        return False
-
-# Force Subscribe Decorator
-def force_subscribe(func):
-    async def wrapper(bot, message):
-        if FORCE_SUB_CHANNEL:
-            is_sub = await is_subscribed(bot, message.from_user.id)
-            if not is_sub:
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔔 Join Channel", url="https://t.me/roxybasicneedbot1")],
-                    [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_sub")]
-                ])
-                await message.reply_text(
-                    f"<b>🔒 Access Denied!</b>\n\n"
-                    f"You must join our channel to use this bot.\n\n"
-                    f"👇 Click the button below to join:",
-                    reply_markup=keyboard,
-                    parse_mode=ParseMode.HTML
-                )
-                return
-        await func(bot, message)
-    return wrapper
 
 # Enhanced URL validation function
 def is_valid_url(url):
@@ -111,18 +71,16 @@ def extract_url_from_line(line):
     return None, None
 
 @bot.on_message(filters.command(["start"]))
-@force_subscribe
 async def start(bot: Client, m: Message):
     welcome_text = f"<b>👋 Hello {m.from_user.mention}!</b>\n\n<blockquote>📁 I am a bot for downloading files from your <b>.TXT</b> file and uploading them to Telegram.\n\n🚀 To get started, send /upload command and follow the steps.</blockquote>"
     
-    # Create inline keyboard
+    # Create inline keyboard (आपका चैनल यहाँ सेट है)
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("⚡ Upload Files", callback_data="upload_files")
         ],
         [
-            InlineKeyboardButton("🔔 Channel", url="https://t.me/roxybasicneedbot1"),
-            InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/roxycontactbot")
+            InlineKeyboardButton("🔔 Channel", url="https://t.me/iamtghelp")
         ]
     ])
     
@@ -145,21 +103,7 @@ async def start(bot: Client, m: Message):
 async def callback_handler(bot: Client, query: CallbackQuery):
     data = query.data
     
-    if data == "refresh_sub":
-        if FORCE_SUB_CHANNEL:
-            is_sub = await is_subscribed(bot, query.from_user.id)
-            if is_sub:
-                await query.message.delete()
-                await bot.send_message(
-                    query.from_user.id, 
-                    "✅ **Subscription Verified!**\n\nYou can now use the bot. Send /start to begin."
-                )
-            else:
-                await query.answer("❌ You haven't joined the channel yet!", show_alert=True)
-        else:
-            await query.answer("✅ No subscription required!")
-    
-    elif data == "upload_files":
+    if data == "upload_files":
         await query.answer("Send /upload command to start!", show_alert=True)
 
 @bot.on_message(filters.command("stop"))
@@ -168,7 +112,6 @@ async def restart_handler(_, m):
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 @bot.on_message(filters.command(["upload"]))
-@force_subscribe
 async def upload(bot: Client, m: Message):
     editable = await m.reply_text('📤 Send your TXT file with links ⚡️')
     input: Message = await bot.listen(editable.chat.id)
@@ -286,39 +229,32 @@ async def upload(bot: Client, m: Message):
                 if "youtu" in url:
                     ytf = 'bv*[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[height<={raw_text2}][ext=mp4]'
                     
-                    
                     cmd = (
-                            
                      f'yt-dlp '
-    f'--force-ipv4 '
-    f'--retries infinite '
-    f'--http-chunk-size 10M '
-    f'--downloader ffmpeg '
-    f'--concurrent-fragments 20 '
-    f'--cookies-from-browser chrome '
-    f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
-    f'-f "{ytf}" "{url}" '
-    f'-o "{name}.%(ext)s"'
-
-    
-                        )
-
+                        f'--force-ipv4 '
+                        f'--retries infinite '
+                        f'--http-chunk-size 10M '
+                        f'--downloader ffmpeg '
+                        f'--concurrent-fragments 20 '
+                        f'--cookies-from-browser chrome '
+                        f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
+                        f'-f "{ytf}" "{url}" '
+                        f'-o "{name}.%(ext)s"'
+                    )
 
                 elif url.endswith('.pdf'):
                     cmd = f'yt-dlp -o "{name}.pdf" "{url}"'
                 else:
-                    
                     cmd = (
-                            f'yt-dlp '
-                            f'--downloader ffmpeg '
-                            f'--concurrent-fragments 32 '
-                            f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
-                            f'--add-header "Accept-Language: en-US,en;q=0.9" '
-                            f'--add-header "Connection: keep-alive" '
-                            f'-f "bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]" "{url}" '
-                            f'-o "{name}.%(ext)s"'
-                        )
-
+                        f'yt-dlp '
+                        f'--downloader ffmpeg '
+                        f'--concurrent-fragments 32 '
+                        f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
+                        f'--add-header "Accept-Language: en-US,en;q=0.9" '
+                        f'--add-header "Connection: keep-alive" '
+                        f'-f "bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]" "{url}" '
+                        f'-o "{name}.%(ext)s"'
+                    )
 
                 cc = f'**📹 Video #{str(count).zfill(3)}**\n**📁 Title:** {name1}\n**📦 Batch:** {raw_text0}\n{MR}'
                 cc1 = f'**📄 Document #{str(count).zfill(3)}**\n**📁 Title:** {name1}\n**📦 Batch:** {raw_text0}\n{MR}'
