@@ -55,21 +55,18 @@ async def download_with_requests(url, filename):
 
 
 async def download_video(url, cmd, name, progress_callback=None):
-    # FIXED: Remove aria2 completely - Railway doesn't allow it
     download_cmd = f'{cmd} -R 25 --fragment-retries 25 --no-check-certificates'
     global failed_counter
     print(download_cmd)
     logging.info(download_cmd)
     
     try:
-        # First attempt with yt-dlp (without aria2)
         k = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
         
         if k.returncode != 0:
             print(f"yt-dlp failed with return code {k.returncode}")
             print(f"Error output: {k.stderr}")
             
-            # Check if it's a known yt-dlp error that suggests direct download might work
             error_indicators = [
                 "Unable to download webpage",
                 "HTTP Error 400",
@@ -86,11 +83,9 @@ async def download_video(url, cmd, name, progress_callback=None):
                 if result:
                     return result
                 
-                # If aiohttp fails, try requests as final fallback
                 print("Aiohttp failed, trying requests...")
                 return await download_with_requests(url, f"{name.split('.')[0]}.mp4")
             
-            # For visionias, retry logic
             if "visionias" in cmd and failed_counter <= 10:
                 failed_counter += 1
                 await asyncio.sleep(5)
@@ -98,7 +93,6 @@ async def download_video(url, cmd, name, progress_callback=None):
         
         failed_counter = 0
         
-        # Check for downloaded file with various extensions
         possible_files = [
             name,
             f"{name}.webm",
@@ -111,27 +105,25 @@ async def download_video(url, cmd, name, progress_callback=None):
             if os.path.isfile(file_path) and os.path.getsize(file_path) > 0:
                 return file_path
         
-        # If no file found with yt-dlp, try direct download
         print("No file found after yt-dlp, attempting direct download...")
         return await direct_download_video(url, name.split('.')[0], progress_callback)
                 
     except Exception as e:
         print(f"Error in download_video: {e}")
-        # Fallback to direct download on any exception
         try:
             return await direct_download_video(url, name.split('.')[0], progress_callback)
         except:
             return None
 
 
-async def send_doc(bot: Client, m: Message,cc,ka,cc1,prog,count,name):
+async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name):
     try:
         reply = await m.reply_text(f"Uploading » `{name}`")
         time.sleep(1)
         start_time = time.time()
-        await m.reply_document(ka,caption=cc1)
-        count+=1
-        await reply.delete (True)
+        await m.reply_document(ka, caption=cc1)
+        count += 1
+        await reply.delete(True)
         time.sleep(1)
         if os.path.exists(ka):
             os.remove(ka)
@@ -140,19 +132,17 @@ async def send_doc(bot: Client, m: Message,cc,ka,cc1,prog,count,name):
         print(f"Error in send_doc: {e}")
 
 
-async def send_vid(bot: Client, m: Message,cc,filename,thumb,name,prog):
+async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
     try:
-        # Check if file exists before processing
         if not os.path.exists(filename):
             await m.reply_text(f"**Error: File not found** - `{filename}`")
             return
             
-        # Generate thumbnail - Railway compatible ffmpeg command
         thumbnail_cmd = f'ffmpeg -i "{filename}" -ss 00:00:12 -vframes 1 -y "{filename}.jpg"'
         subprocess.run(thumbnail_cmd, shell=True, stderr=subprocess.DEVNULL)
         
         if prog:
-            await prog.delete (True)
+            await prog.delete(True)
         reply = await m.reply_text(f"**Uploading ...** - `{name}`")
         
         try:
@@ -165,21 +155,19 @@ async def send_vid(bot: Client, m: Message,cc,filename,thumb,name,prog):
             await m.reply_text(str(e))
 
         dur = int(duration(filename))
-
         start_time = time.time()
 
         try:
-            await m.reply_video(filename,caption=cc, supports_streaming=True,height=720,width=1280,thumb=thumbnail,duration=dur, progress=progress_bar,progress_args=(reply,start_time))
+            await m.reply_video(filename, caption=cc, supports_streaming=True, height=720, width=1280, thumb=thumbnail, duration=dur, progress=progress_bar, progress_args=(reply, start_time))
         except Exception:
-            await m.reply_document(filename,caption=cc, progress=progress_bar,progress_args=(reply,start_time))
+            await m.reply_document(filename, caption=cc, progress=progress_bar, progress_args=(reply, start_time))
 
-        # Clean up files
         if os.path.exists(filename):
             os.remove(filename)
 
         if os.path.exists(f"{filename}.jpg"):
             os.remove(f"{filename}.jpg")
-        await reply.delete (True)
+        await reply.delete(True)
         
     except Exception as e:
         print(f"Error in send_vid: {e}")
@@ -187,17 +175,17 @@ async def send_vid(bot: Client, m: Message,cc,filename,thumb,name,prog):
 
     
 def exec(cmd):
-        process = subprocess.run(cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        output = process.stdout.decode()
-        print(output)
-        return output
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = process.stdout.decode()
+    print(output)
+    return output
         
 def pull_run(work, cmds):
     with concurrent.futures.ThreadPoolExecutor(max_workers=work) as executor:
         print("Waiting for tasks to complete")
-        fut = executor.map(exec,cmds)
+        fut = executor.map(exec, cmds)
         
-async def aio(url,name):
+async def aio(url, name):
     k = f'{name}.pdf'
     try:
         async with aiohttp.ClientSession() as session:
@@ -213,7 +201,6 @@ async def aio(url,name):
 
 
 async def test_url_accessibility(url):
-    """Test if URL is accessible and return useful info"""
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -242,28 +229,22 @@ async def test_url_accessibility(url):
 
 
 def get_video_download_strategy(url):
-    """Determine the best download strategy for a given URL"""
-    
-    # YouTube and similar platforms - always use yt-dlp first
     youtube_domains = ['youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com']
     if any(domain in url.lower() for domain in youtube_domains):
         return 'ytdlp_primary'
     
-    # Direct video file URLs
     video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
     if any(ext in url.lower() for ext in video_extensions):
         return 'direct_primary'
     
-    # Streaming platforms that might need special handling
     streaming_domains = ['visionias', 'classplusapp', 'jw-prod']
     if any(domain in url.lower() for domain in streaming_domains):
         return 'ytdlp_primary'
     
-    # Default: try yt-dlp first, fallback to direct
     return 'ytdlp_fallback_direct'
 
 
-async def download(url,name):
+async def download(url, name):
     ka = f'{name}.pdf'
     try:
         async with aiohttp.ClientSession() as session:
@@ -289,7 +270,7 @@ def parse_vid_info(info):
             while "  " in i:
                 i = i.replace("  ", " ")
             i.strip()
-            i = i.split("|")[0].split(" ",2)
+            i = i.split("|")[0].split(" ", 2)
             try:
                 if "RESOLUTION" not in i[2] and i[2] not in temp and "audio" not in i[2]:
                     temp.append(i[2])
@@ -310,11 +291,11 @@ def vid_info(info):
             while "  " in i:
                 i = i.replace("  ", " ")
             i.strip()
-            i = i.split("|")[0].split(" ",3)
+            i = i.split("|")[0].split(" ", 3)
             try:
                 if "RESOLUTION" not in i[2] and i[2] not in temp and "audio" not in i[2]:
                     temp.append(i[2])
-                    new_info.update({f'{i[2]}':f'{i[0]}'})
+                    new_info.update({f'{i[2]}': f'{i[0]}'})
             except:
                 pass
     return new_info
@@ -337,7 +318,7 @@ async def run(cmd):
         return f'[stderr]\n{stderr.decode()}'
 
     
-def old_download(url, file_name, chunk_size = 1024 * 10):
+def old_download(url, file_name, chunk_size=1024 * 10):
     try:
         if os.path.exists(file_name):
             os.remove(file_name)
@@ -370,19 +351,16 @@ def time_name():
 failed_counter = 0
 
 async def direct_download_video(url, name, progress_callback=None):
-    """Direct download for video files when yt-dlp fails - Railway compatible"""
     try:
         print(f"Attempting direct download from: {url}")
         
-        # Determine file extension from URL or default to mp4
         if url.lower().endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm')):
-            ext = url.split('.')[-1].split('?')[0].lower()  # Remove query params
+            ext = url.split('.')[-1].split('?')[0].lower()
         else:
             ext = 'mp4'
             
         filename = f"{name}.{ext}"
         
-        # Headers to mimic a real browser
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -392,8 +370,7 @@ async def direct_download_video(url, name, progress_callback=None):
             'Upgrade-Insecure-Requests': '1',
         }
         
-        # Increased timeout for Railway's environment
-        timeout = aiohttp.ClientTimeout(total=7200)  # 2 hours for large files
+        timeout = aiohttp.ClientTimeout(total=7200)
         
         connector = aiohttp.TCPConnector(
             limit=100,
@@ -413,11 +390,10 @@ async def direct_download_video(url, name, progress_callback=None):
                     downloaded = 0
                     
                     async with aiofiles.open(filename, 'wb') as file:
-                        async for chunk in response.content.iter_chunked(16384):  # 16KB chunks
+                        async for chunk in response.content.iter_chunked(16384):
                             await file.write(chunk)
                             downloaded += len(chunk)
                             
-                            # Progress callback if provided
                             if progress_callback and total_size > 0:
                                 try:
                                     await progress_callback(downloaded, total_size)
@@ -433,7 +409,6 @@ async def direct_download_video(url, name, progress_callback=None):
                     
     except Exception as e:
         print(f"Error in direct_download_video: {e}")
-        # Try with requests as final fallback
         try:
             return await download_with_requests(url, f"{name}.mp4")
         except:
