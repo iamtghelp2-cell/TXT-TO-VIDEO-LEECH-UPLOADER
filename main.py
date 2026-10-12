@@ -24,10 +24,55 @@ bot = Client(
     "bot",
     api_id=API_ID,
     api_hash=API_HASH,
-    bot_token=BOT_TOKEN)
+    bot_token=BOT_TOKEN
+)
 
 WELCOME_IMAGE_PATH = "welcome.jpg"
+AUTH_FILE = "auth_users.json"
 
+# --- अधिकृत यूज़र्स (Auth Users) लोड और सेव करने का सिस्टम ---
+def load_auth_users():
+    allowed = set()
+    if OWNER_ID:
+        allowed.add(int(OWNER_ID))
+    if ADMINS:
+        for adm in ADMINS:
+            allowed.add(int(adm))
+    if os.path.exists(AUTH_FILE):
+        try:
+            with open(AUTH_FILE, "r") as f:
+                data = json.load(f)
+                allowed.update(data)
+        except Exception as e:
+            print(f"Error loading auth users: {e}")
+    return allowed
+
+def save_auth_users(users_set):
+    try:
+        with open(AUTH_FILE, "w") as f:
+            json.dump(list(users_set), f)
+    except Exception as e:
+        print(f"Error saving auth users: {e}")
+
+AUTH_USERS = load_auth_users()
+
+def is_authorized(user_id):
+    """चेक करें कि यूज़र ओनर या स्वीकृत लिस्ट में है या नहीं"""
+    if OWNER_ID and user_id == int(OWNER_ID):
+        return True
+    if user_id in ADMINS:
+        return True
+    return user_id in AUTH_USERS
+
+def is_owner(user_id):
+    """चेक करें कि क्या यह सिर्फ बॉट ओनर है"""
+    if OWNER_ID and user_id == int(OWNER_ID):
+        return True
+    if ADMINS and user_id in ADMINS:
+        return True
+    return False
+
+# --- URL वैलिडेशन और हेडर ---
 def is_valid_url(url):
     url_pattern = re.compile(
         r'^https?://'
@@ -42,7 +87,6 @@ def extract_url_from_line(line):
     line = line.strip()
     if not line:
         return None, None
-    
     url_match = re.search(r'https?://[^\s]+', line)
     if url_match:
         url = url_match.group()
@@ -53,34 +97,37 @@ def extract_url_from_line(line):
     return None, None
 
 def get_platform_headers(url):
-    """पहचानकर हर ऐप के हिसाब से सही हेडर लगाना"""
-    headers_cmd = ""
     u = url.lower()
-    
     if "akamaized.net" in u or "khanglobalstudies" in u:
-        headers_cmd = '--add-header "Origin: https://khanglobalstudies.com" --add-header "Referer: https://khanglobalstudies.com/"'
+        return '--add-header "Origin: https://khanglobalstudies.com" --add-header "Referer: https://khanglobalstudies.com/"'
     elif "classplusapp" in u or "cpvod" in u:
-        headers_cmd = '--add-header "Origin: https://web.classplusapp.com" --add-header "Referer: https://web.classplusapp.com/"'
+        return '--add-header "Origin: https://web.classplusapp.com" --add-header "Referer: https://web.classplusapp.com/"'
     elif "pw.live" in u or "penpencil" in u:
-        headers_cmd = '--add-header "Origin: https://www.pw.live" --add-header "Referer: https://www.pw.live/"'
+        return '--add-header "Origin: https://www.pw.live" --add-header "Referer: https://www.pw.live/"'
     elif "careerwill" in u:
-        headers_cmd = '--add-header "Origin: https://careerwill.com" --add-header "Referer: https://careerwill.com/"'
-    elif "adda247" in u:
-        headers_cmd = '--add-header "Origin: https://www.adda247.com" --add-header "Referer: https://www.adda247.com/"'
-    elif "drishtiias" in u:
-        headers_cmd = '--add-header "Origin: https://www.drishtiias.com" --add-header "Referer: https://www.drishtiias.com/"'
-    else:
-        headers_cmd = '--add-header "Accept: */*" --add-header "Connection: keep-alive"'
-        
-    return headers_cmd
+        return '--add-header "Origin: https://careerwill.com" --add-header "Referer: https://careerwill.com/"'
+    return '--add-header "Accept: */*" --add-header "Connection: keep-alive"'
+
+
+# --- बॉट कमांड्स ---
 
 @bot.on_message(filters.command(["start"]))
 async def start(bot: Client, m: Message):
+    user_id = m.from_user.id
+    if not is_authorized(user_id):
+        await m.reply_text(
+            f"<b>🔒 Access Denied!</b>\n\n"
+            f"यह बोट प्राइवेट है। केवल स्वीकृत यूज़र्स ही इसका उपयोग कर सकते हैं।\n\n"
+            f"🆔 आपकी टेलीग्राम ID: <code>{user_id}</code>\n"
+            f"एक्सेस पाने के लिए यह ID एडमिन को भेजें।",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
     welcome_text = (
         f"<b>👋 Hello {m.from_user.mention}!</b>\n\n"
-        f"<blockquote>📁 <b>Universal TXT-to-Telegram Uploader</b>\n\n"
-        f"⚡ <b>Supported:</b> All Major Coaching Apps (KGS, Classplus, PW, Careerwill, Adda247), YouTube, Google Drive & PDFs.\n\n"
-        f"🚀 Send <b>/upload</b> command to start downloading.</blockquote>"
+        f"<blockquote>📁 <b>Private TXT-to-Telegram Uploader</b>\n\n"
+        f"🚀 फ़ाइलें डाउनलोड करने के लिए <b>/upload</b> कमांड भेजें।</blockquote>"
     )
     
     keyboard = InlineKeyboardMarkup([
@@ -93,6 +140,57 @@ async def start(bot: Client, m: Message):
     else:
         await m.reply_text(welcome_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
+# केवल ओनर के लिए: किसी दोस्त को एक्सेस देना
+@bot.on_message(filters.command(["add"]))
+async def add_user(bot: Client, m: Message):
+    if not is_owner(m.from_user.id):
+        return await m.reply_text("❌ केवल बोट ओनर ही नए यूज़र्स को जोड़ सकते हैं।")
+    
+    if len(m.command) < 2:
+        return await m.reply_text("ℹ️ ऐसे लिखें: <code>/add 123456789</code> (यूज़र आईडी के साथ)")
+    
+    try:
+        new_id = int(m.command[1].strip())
+        AUTH_USERS.add(new_id)
+        save_auth_users(AUTH_USERS)
+        await m.reply_text(f"✅ <b>यूज़र <code>{new_id}</code> को एक्सेस दे दिया गया है!</b>")
+    except ValueError:
+        await m.reply_text("❌ अमान्य यूज़र आईडी!")
+
+# केवल ओनर के लिए: किसी दोस्त का एक्सेस हटाना
+@bot.on_message(filters.command(["remove"]))
+async def remove_user(bot: Client, m: Message):
+    if not is_owner(m.from_user.id):
+        return await m.reply_text("❌ केवल बोट ओनर ही यूज़र्स को हटा सकते हैं।")
+    
+    if len(m.command) < 2:
+        return await m.reply_text("ℹ️ ऐसे लिखें: <code>/remove 123456789</code>")
+    
+    try:
+        rem_id = int(m.command[1].strip())
+        if rem_id in AUTH_USERS:
+            AUTH_USERS.remove(rem_id)
+            save_auth_users(AUTH_USERS)
+            await m.reply_text(f"🚫 <b>यूज़र <code>{rem_id}</code> का एक्सेस हटा दिया गया है!</b>")
+        else:
+            await m.reply_text("⚠️ यह यूज़र लिस्ट में नहीं है।")
+    except ValueError:
+        await m.reply_text("❌ अमान्य यूज़र आईडी!")
+
+# केवल ओनर के लिए: सभी अधिकृत यूज़र्स की लिस्ट देखना
+@bot.on_message(filters.command(["users"]))
+async def list_users(bot: Client, m: Message):
+    if not is_owner(m.from_user.id):
+        return await m.reply_text("❌ केवल बोट ओनर ही यह देख सकते हैं।")
+    
+    if not AUTH_USERS:
+        return await m.reply_text("ℹ️ कोई भी यूज़र अधिकृत नहीं है।")
+    
+    text = "👥 <b>स्वीकृत यूज़र्स की लिस्ट:</b>\n\n"
+    for idx, uid in enumerate(AUTH_USERS, 1):
+        text += f"{idx}. <code>{uid}</code>\n"
+    await m.reply_text(text, parse_mode=ParseMode.HTML)
+
 @bot.on_callback_query()
 async def callback_handler(bot: Client, query: CallbackQuery):
     if query.data == "upload_files":
@@ -100,11 +198,22 @@ async def callback_handler(bot: Client, query: CallbackQuery):
 
 @bot.on_message(filters.command("stop"))
 async def restart_handler(_, m):
+    if not is_owner(m.from_user.id):
+        return
     await m.reply_text("**🛑 Stopped**", True)
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 @bot.on_message(filters.command(["upload"]))
 async def upload(bot: Client, m: Message):
+    user_id = m.from_user.id
+    if not is_authorized(user_id):
+        await m.reply_text(
+            f"<b>🔒 Access Denied!</b>\n\n"
+            f"आप इस बोट का उपयोग नहीं कर सकते। केवल स्वीकृत यूज़र्स ही अपलोड कर सकते हैं।\n"
+            f"आपकी ID: <code>{user_id}</code>"
+        )
+        return
+
     editable = await m.reply_text('📤 Send your TXT file with links ⚡️')
     input_msg: Message = await bot.listen(editable.chat.id)
     x = await input_msg.download()
@@ -179,19 +288,16 @@ async def upload(bot: Client, m: Message):
 
     successful_downloads = 0
     failed_downloads = 0
-
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
     for i in range(count - 1, len(links)):
         try:
             title, url = links[i]
             
-            # YouTube embed फिक्स
             if "youtube.com/embed/" in url:
                 yt_id = url.split("embed/")[1].split("?")[0]
                 url = f"https://www.youtube.com/watch?v={yt_id}"
 
-            # Google drive direct link फिक्स
             if "drive.google.com" in url:
                 url = url.replace("file/d/", "uc?export=download&id=").replace("/view?usp=sharing", "")
 
@@ -206,10 +312,8 @@ async def upload(bot: Client, m: Message):
 
             platform_headers = get_platform_headers(url)
 
-            # 1. PDF फाइल्स
             if url.endswith('.pdf') or "pdf" in url.lower():
                 cmd = f'yt-dlp --no-check-certificates {platform_headers} -o "{name}.pdf" "{url}"'
-            # 2. सभी वीडियो प्लेटफॉर्म्स (KGS, Classplus, PW, YouTube, Akamai, CloudFront)
             else:
                 cmd = (
                     f'yt-dlp '
